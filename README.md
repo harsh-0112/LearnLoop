@@ -12,10 +12,11 @@ backend/            FastAPI app
   app/db.py         SQLAlchemy engine/session/Base
   app/main.py       App factory + CORS + routers
   app/models/       SQLAlchemy models
-  app/routers/      API routers (GET /health)
+  app/routers/      API routers (GET /health, POST /concepts/extract)
   app/schemas/      Pydantic schemas
   app/services/     Business logic
   alembic/          Migrations
+  tests/            pytest suite
 frontend/           Next.js 14 (App Router, TypeScript, Tailwind)
 data/synthetic/     Synthetic data generation scripts
 docker-compose.yml
@@ -69,6 +70,41 @@ cd frontend
 npm install
 npm run dev
 ```
+
+## Synthetic demo data
+
+Seeds 150 students across Algebra and Physics, ~25 concepts per subject with
+prerequisite chains, and ~30 simulated days of quiz attempts driven by a
+Bayesian Knowledge Tracing forward model (including deliberately struggling
+students and fast learners):
+
+```bash
+python -m data.synthetic.generate_students --reset   # from the repo root
+```
+
+Flags: `--reset` wipes generated rows first, `--students`, `--days`, `--seed`.
+
+## Concept extraction
+
+`POST /concepts/extract` takes a `subject` form field and a PDF or UTF-8 text
+`file`, extracts the text, asks Claude for 10-30 concepts with difficulty levels
+and prerequisite names, then persists `Concept` and `ConceptPrerequisite` rows,
+deduplicating by concept name within the subject.
+
+```bash
+curl -F subject=Physics -F file=@notes.txt http://localhost:8000/concepts/extract
+```
+
+Requires `ANTHROPIC_API_KEY`.
+
+## Tests
+
+```bash
+pip install -r backend/requirements-dev.txt
+pytest backend/tests/
+```
+
+The Anthropic client is mocked, so no API key is needed to run the suite.
 
 ## Migrations
 
